@@ -134,13 +134,55 @@ WHERE SHIPPING_ADDRESS is null AND status = 'Delivered';
 -- 
 
 -- Премахване на дублиращи се редове
-CREATE TABLE WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records AS
+CREATE OR REPLACE TABLE WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records AS
 SELECT DISTINCT *
 FROM WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.ECOMMERCE_ORDERS;
+-- 
 
-SELECT count(*)
-FROM WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.ECOMMERCE_ORDERS;
-
-SELECT count(*)
+-- Създаване на таблица със грешен формат дати
+CREATE OR REPLACE TABLE WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_invalid_date_format AS 
+SELECT *
 FROM WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records
-WHERE ORDER_DATE not like '____-__-__'
+WHERE TRY_CAST(order_date as DATE) IS NULL;
+
+SELECT * FROM WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.TD_INVALID_DATE_FORMAT
+-- 
+
+-- Поправяне на датите
+UPDATE WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.TD_CLEAN_RECORDS
+SET order_date = '1970-01-01'
+WHERE TRY_CAST(order_date as DATE) IS NULL;
+
+UPDATE WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records
+    SET order_date = TO_DATE(order_date);
+-- 
+
+    
+--Правя нова таблица, която да има правилно зададени типове на колоните, защото при създаването не знаех че трябва да се прави експлиситно.
+CREATE
+OR REPLACE TABLE WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records_new AS
+SELECT
+  TRY_TO_NUMBER (quantity) AS quantity,
+  TRY_TO_DECIMAL (price, 10, 2) AS price,
+  TRY_TO_DECIMAL (total_amount, 10, 2) AS total_amount,
+  TRY_TO_DOUBLE (discount) AS discount,
+  customer_id,
+  customer_name,
+  order_date,
+  order_id,
+  payment_method,
+  product,
+  shipping_address,
+  status
+FROM
+  WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records;
+  
+ALTER TABLE
+  WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records 
+  RENAME TO WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records_old;
+  
+ALTER TABLE
+  WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records_new 
+  RENAME TO WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records;
+
+SELECT * FROM WOODCHUCK_ECOMERSE_DB.MODIFIED_DATA.td_clean_records
